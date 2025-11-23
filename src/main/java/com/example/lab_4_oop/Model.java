@@ -2,236 +2,181 @@ package com.example.lab_4_oop;
 
 import com.example.lab_4_oop.shapes.*;
 import javafx.scene.paint.Color;
-public class Model {
+public class Model { // Model хранит данные, Controller обрабатывает действия пользователя
     private final Storage<Shape> shapes = new Storage<>();
-    private final Storage<Shape> selectedShapes = new Storage<>();
-    private ShapeType currentShapeType = ShapeType.CIRCLE;
-    private Color currentColor = Color.RED;
-    private Runnable onModelChanged;
-    
-    // Система отката
-    private final java.util.List<Storage<Shape>> history = new java.util.ArrayList<>();
-    private int historyIndex = -1;
+    private Color colorNow = Color.RED; // Приватное поле colorNow - текущий выбранный цвет для новых фигур
+    private Runnable onModelChanged = () -> {}; // Используется для уведомления Controller о том, что нужно перерисовать экран
 
-    public enum ShapeType {
-        CIRCLE, SQUARE, ELLIPSE, RECTANGLE, TRIANGLE, LINE
-    }
-
-    public void setOnModelChanged(Runnable callback) {
+    // Метод установки функции-обработчика изменений
+    public void setOnModelChanged(Runnable callback) { // функция вызывается при изменении модели
         this.onModelChanged = callback;
     }
 
-    private void notifyChange() {
-        if (onModelChanged != null) {
-            onModelChanged.run();
-        }
-    }
-
-    public void addShape(Shape shape) {
-        saveState();
+    // Метод добавления фигур в хранилище
+    public void addShapeToStorage(Shape shape) {
         shapes.add(shape);
         notifyChange();
     }
 
-    public void removeShape(Shape shape) {
-        saveState();
+    // Метод удаления фигур из хранилища
+    public void removeShapeFromStorage(Shape shape) {
         shapes.remove(shape);
-        selectedShapes.remove(shape);
         notifyChange();
     }
 
+    // Метод удаления выделенных фигур
     public void removeSelected() {
-        if (!selectedShapes.isEmpty()) {
-            saveState();
-            for (Shape shape : selectedShapes) {
-                shapes.remove(shape);
-            }
-            selectedShapes.clear();
-            notifyChange();
+        java.util.ArrayList<Shape> shapesToRemove = new java.util.ArrayList<Shape>(); // Список фигур для удаления
+        for (Shape shape : shapes) {
+            if (shape.isSelected()) {shapesToRemove.add(shape);}
+        }
+        for (Shape shape : shapesToRemove) {
+            removeShapeFromStorage(shape);
         }
     }
 
+    // Метод для выделения или снятия выделения с фигуры
     public void selectShape(Shape shape, boolean multiSelect) {
-        if (!multiSelect) {
-            clearSelection();
+        if (!multiSelect) { // Не множественное
+            if (shape.isSelected()) {
+                shape.shapeSetSelected(false);
+                notifyChange();
+                return;
+            }
+            clearSelection(); // Снтие всех выделенных
         }
-        
-        // Если фигура уже выделена и это не множественное выделение, оставляем её выделенной
-        if (shape.isSelected() && !multiSelect) {
-            // Фигура уже выделена, ничего не делаем
-            return;
-        }
-        
-        if (shape.isSelected()) {
-            shape.setSelected(false);
-            selectedShapes.remove(shape);
+        if (shape.isSelected()) { // Множественное
+            shape.shapeSetSelected(false);
         } else {
-            shape.setSelected(true);
-            selectedShapes.add(shape);
+            shape.shapeSetSelected(true);
         }
         notifyChange();
     }
 
+    // Метод снятия выделения со всех фигур
     public void clearSelection() {
-        for (Shape shape : selectedShapes) {
-            shape.setSelected(false);
+        for (Shape shape : shapes) {
+            if (shape.isSelected()) {
+                shape.shapeSetSelected(false);
+            }
         }
-        selectedShapes.clear();
         notifyChange();
     }
 
+    // Метод выделения всех фигур
+    public void selectAllShapes() {
+        for (Shape s : shapes) {
+            s.shapeSetSelected(true);
+        }
+        notifyChange();
+    }
+
+    // Метод нахождения фигуры в указанной точке
     public Shape findShapeAt(double x, double y) {
-        Shape found = null;
-        // Ищем фигуры в обратном порядке (сверху вниз)
-        for (int i = shapes.size() - 1; i >= 0; i--) {
+        Shape foundShape = null;
+        for (int i = shapes.size() - 1; i >= 0; i--) { // последняя созданная фигура
             Shape shape = shapes.get(i);
-            if (shape != null && shape.isClickInShape(x, y)) {
-                found = shape;
+            if (shape != null && shape.isClickInShape(x, y)) { // Попал ли клик в фигуру
+                foundShape = shape;
                 break;
             }
         }
-        return found;
+        return foundShape;
     }
 
+    // Метод для перемещения всех выделенных фигур
     public void moveSelected(double dx, double dy, double canvasWidth, double canvasHeight) {
-        if (!selectedShapes.isEmpty()) {
-            // Проверяем, можно ли переместить все выделенные фигуры
-            boolean canMoveAll = true;
-            for (Shape shape : selectedShapes) {
-                if (!shape.canMove(dx, dy, canvasWidth, canvasHeight)) {
+        boolean canMoveAll = true;
+        for (Shape shape : shapes) {
+            if (shape.isSelected()) {
+                if (!shape.canMove(dx, dy, canvasWidth, canvasHeight)) { // нельзя
                     canMoveAll = false;
                     break;
                 }
             }
-            
-            if (canMoveAll) {
-                for (Shape shape : selectedShapes) {
-                    shape.move(dx, dy, canvasWidth, canvasHeight);
-                }
-                notifyChange();
-            }
         }
-    }
-    
-    public void saveStateForMove() {
-        saveState();
-    }
-
-    public void resizeSelected(double scale, double canvasWidth, double canvasHeight) {
-        if (!selectedShapes.isEmpty()) {
-            for (Shape shape : selectedShapes) {
-                double newSize = shape.getSize() * scale;
-                if (newSize > 5 && newSize < 1000) { // Ограничения на размер
-                    shape.resize(newSize, canvasWidth, canvasHeight);
+        if (canMoveAll) { // можно
+            for (Shape shape : shapes) {
+                if (shape.isSelected()) {
+                    shape.moveShape(dx, dy, canvasWidth, canvasHeight);
                 }
             }
             notifyChange();
         }
     }
 
-    public void changeColorSelected(Color color) {
-        for (Shape shape : selectedShapes) {
-            shape.setColor(color);
-        }
-        notifyChange();
-    }
-
-    public Storage<Shape> getShapes() {
-        return shapes;
-    }
-
-    public Storage<Shape> getSelectedShapes() {
-        return selectedShapes;
-    }
-
-    public ShapeType getCurrentShapeType() {
-        return currentShapeType;
-    }
-
-    public void setCurrentShapeType(ShapeType type) {
-        this.currentShapeType = type;
-    }
-
-    public Color getCurrentColor() {
-        return currentColor;
-    }
-
-    public void setCurrentColor(Color color) {
-        this.currentColor = color;
-    }
-    
-    public void clearAll() {
-        saveState();
-        shapes.clear();
-        selectedShapes.clear();
-        notifyChange();
-    }
-    
-    private void saveState() {
-        // Удаляем все состояния после текущего индекса
-        while (history.size() > historyIndex + 1) {
-            history.remove(history.size() - 1);
-        }
-        
-        // Создаем копию текущего состояния
-        Storage<Shape> stateCopy = new Storage<>();
+    // Метод изменения размера всех выделенных фигур
+    public void resizeSelected(double scale, double canvasWidth, double canvasHeight) { // double scale: кэф масштабирования, например1.1 это увеличить на 10%
+        boolean canResizeAll = true;
         for (Shape shape : shapes) {
-            // Создаем копию фигуры
-            Shape copy = createShapeCopy(shape);
-            stateCopy.add(copy);
+            if (shape.isSelected()) {
+                double newSize = shape.getSizeOfShape() * scale; //нынешний размер * на кэф масштабирования
+                if (newSize <= 5 || newSize >= 1000 || !shape.canResize(newSize, canvasWidth, canvasHeight)) { //нельзя изменить
+                    canResizeAll = false;
+                    break;
+                }
+            }
         }
-        
-        history.add(stateCopy);
-        historyIndex++;
-        
-        // Ограничиваем историю 50 состояниями
-        if (history.size() > 50) {
-            history.remove(0);
-            historyIndex--;
-        }
-    }
-    
-    private Shape createShapeCopy(Shape original) {
-        // Создаем копию фигуры для истории
-        if (original instanceof Circle) {
-            return new Circle(original.getX(), original.getY(), original.getSize(), original.getColor());
-        } else if (original instanceof Square) {
-            return new Square(original.getX(), original.getY(), original.getSize(), original.getColor());
-        } else if (original instanceof Ellipse) {
-            return new Ellipse(original.getX(), original.getY(), original.getSize(), original.getColor());
-        } else if (original instanceof Rectangle) {
-            return new Rectangle(original.getX(), original.getY(), original.getSize(), original.getColor());
-        } else if (original instanceof Triangle) {
-            return new Triangle(original.getX(), original.getY(), original.getSize(), original.getColor());
-        } else if (original instanceof Line) {
-            Line line = (Line) original;
-            return new Line(line.getX(), line.getY(), line.getX2(), line.getY2(), original.getColor());
-        }
-        return null;
-    }
-    
-    public boolean canUndo() {
-        return historyIndex > 0;
-    }
-    
-    public void undo() {
-        if (canUndo()) {
-            historyIndex--;
-            restoreState();
-        }
-    }
-    
-    private void restoreState() {
-        if (historyIndex >= 0 && historyIndex < history.size()) {
-            shapes.clear();
-            selectedShapes.clear();
-            
-            Storage<Shape> state = history.get(historyIndex);
-            for (Shape shape : state) {
-                shapes.add(shape);
+        if (canResizeAll) { // можно изменить
+            for (Shape shape : shapes) {
+                if (shape.isSelected()) {
+                    double newSize = shape.getSizeOfShape() * scale;
+                    shape.resizeShape(newSize, canvasWidth, canvasHeight);
+                }
             }
             notifyChange();
         }
+    }
+
+    // Метод измененеия цвета всех выделенных фигур
+    public void changeColorSelected(Color color) {
+        for (Shape shape : shapes) {
+            if (shape.isSelected()) {
+                shape.setColor(color);
+            }
+        }
+        notifyChange();
+    }
+
+    // Метод для перерисовки всех фигур на холсте
+    public void drawAll(javafx.scene.canvas.GraphicsContext gc) {
+        for (Shape shape : shapes) {
+            shape.draw(gc);
+        }
+    }
+
+    // Метод для выделения всех фигур, которые пересекаются с выделенной областью
+    public void selectShapesInArea(double x1, double y1, double x2, double y2) { // Координаты начальной и конечной точки области выделения
+        double minX = Math.min(x1, x2); // Вычисляем границы прямоугольника выделения
+        double maxX = Math.max(x1, x2);
+        double minY = Math.min(y1, y2);
+        double maxY = Math.max(y1, y2);
+        for (Shape shape : shapes) {
+            if (shape.getMinX() <= maxX && shape.getMaxX() >= minX && // L фигуры <= R области выделелния и R фигуры >= L области
+                shape.getMinY() <= maxY && shape.getMaxY() >= minY) { // верх ф <= низ о и низ ф >= верх о
+                selectShape(shape, true);
+            }
+        }
+    }
+
+    // Получение текущего выбранного цвета
+    public Color getColorNow() {
+        return colorNow;
+    }
+
+    // Устанавливка текущего выбранного цвета
+    public void setColorNow(Color color) {
+        this.colorNow = color;
+    }
+    
+    // Очистка всех фигуры с холста
+    public void clearAll() {
+        shapes.clear();
+        notifyChange();
+    }
+
+    // Уведомление
+    private void notifyChange() {
+        onModelChanged.run();
     }
 }
-

@@ -21,7 +21,7 @@ if %ERRORLEVEL% equ 0 (
     echo - For lines: click on end to resize/rotate, click on middle to move
     echo - Group operations work correctly
     echo - Canvas resizes with window
-    echo - Ctrl+Z for undo, Ctrl+A to select all, Delete to remove
+    echo - Ctrl+A to select all, Delete to remove
     echo - +/- keys to resize selected shapes
     echo - Arrow keys to move selected shapes
     echo.

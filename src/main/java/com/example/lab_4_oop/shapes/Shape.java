@@ -1,14 +1,14 @@
 package com.example.lab_4_oop.shapes;
-
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.paint.Color;
-public abstract class Shape {
-    protected double x, y;
-    protected double size;
-    protected Color color;
-    protected boolean selected;
+public abstract class Shape { // abstract - означает, что нельзя создать объект этого класса напрямую // Можно только создать объекты классов-наследников (Circle, Square и т.д.)
+    protected double x; // x - координата X центра фигуры (горизонтальная позиция)
+    protected double y; // y - координата Y центра фигуры (вертикальная позиция)
+    protected double size; // size - размер фигуры (диаметр для круга, сторона для квадрата и т.д.)
+    protected Color color; // color - цвет заливки фигуры
+    protected boolean selected; // selected - флаг, указывающий выделена ли фигура (true) или нет (false)
 
-    public Shape(double x, double y, double size, Color color) {
+    public Shape(double x, double y, double size, Color color) { // double x, y - координаты центра фигуры // double size - размер фигуры // Color color - цвет фигуры
         this.x = x;
         this.y = y;
         this.size = size;
@@ -16,105 +16,72 @@ public abstract class Shape {
         this.selected = false;
     }
 
-    public abstract boolean isClickInShape(double px, double py);
-    public abstract void draw(GraphicsContext gc);
-    public abstract double getMinX();
-    public abstract double getMinY();
-    public abstract double getMaxX();
-    public abstract double getMaxY();
-
-    //проверка можно ли перемещать без выхода за границу
-    public boolean canMove(double dx, double dy, double canvasWidth, double canvasHeight) {
-        double newMinX = getMinX() + dx;
-        double newMinY = getMinY() + dy;
-        double newMaxX = getMaxX() + dx;
-        double newMaxY = getMaxY() + dy;
-        return newMinX >= 0 && newMinY >= 0 && 
-               newMaxX <= canvasWidth && newMaxY <= canvasHeight;
-    }
-
-    public void move(double dx, double dy, double canvasWidth, double canvasHeight) {
-        if (canMove(dx, dy, canvasWidth, canvasHeight)) {
-            x += dx;
-            y += dy;
-        }
-    }
-
-    //проверка можно ли менять размер
-    public boolean canResize(double newSize, double canvasWidth, double canvasHeight) {
-        double tempSize = size;
-        size = newSize;
-        boolean can = getMinX() >= 0 && getMinY() >= 0 && 
-                     getMaxX() <= canvasWidth && getMaxY() <= canvasHeight;
-        size = tempSize;
-        return can;
-    }
-
-    public void resize(double newSize, double canvasWidth, double canvasHeight) {
-        if (canResize(newSize, canvasWidth, canvasHeight)) {
-            size = newSize;
-        }
-    }
-
-    public void setSelected(boolean selected) {
-        this.selected = selected;
-    }
-
-    public boolean isSelected() {
-        return selected;
-    }
-
-    public Color getColor() {
-        return color;
-    }
-
-    public void setColor(Color color) {
-        this.color = color;
-    }
-
-    public double getX() {
-        return x;
-    }
-
-    public double getY() {
-        return y;
-    }
-
-    public double getSize() {
-        return size;
-    }
-
-    public void setX(double x) {
-        this.x = x;
-    }
-
-    public void setY(double y) {
-        this.y = y;
-    }
+    // Абстрактные методы - должны быть реализованы в каждом классе-наследнике
+    // abstract - означает, что здесь только объявление, реализация будет в наследниках
+    public abstract boolean isClickInShape(double px, double py); // isClickInShape - проверяет, находится ли точка клика внутри фигуры // double px, py - координаты точки клика мыши
+    public abstract void draw(GraphicsContext gc); // draw - рисует фигуру на холсте
+    public abstract double getMinX(); // getMinX - возвращает минимальную координату X (левая граница фигуры)
+    public abstract double getMinY(); // getMinY - возвращает минимальную координату Y (верхняя граница фигуры)
+    public abstract double getMaxX(); // getMaxX - возвращает максимальную координату X (правая граница фигуры)
+    public abstract double getMaxY(); // getMaxY - возвращает максимальную координату Y (нижняя граница фигуры)
     
+    // Метод проверяет, можно ли переместить фигуру на заданное расстояние
+    public boolean canMove(double dx, double dy, double canvasWidth, double canvasHeight) {
+        return getMinX() + dx >= 0 && getMinY() + dy >= 0 && getMaxX() + dx <= canvasWidth && getMaxY() + dy <= canvasHeight; // Все границы смещенных фигур по dx, dy остаются в пределах холста
+    }
 
-    //Автоматическая подгонка фигуры под границу
-    public void constrainToBounds(double canvasWidth, double canvasHeight) {
+    //Метод перемещения фигур
+    public void moveShape(double dx, double dy, double canvasWidth, double canvasHeight) {
+        if (canMove(dx, dy, canvasWidth, canvasHeight)) {x += dx; y += dy;}
+    }
+
+    // Метод проверки возможности изменения размера фигуры (переопределяется в наследниках)
+    public boolean canResize(double newSizeOfShape, double canvasWidth, double canvasHeight) {
+        // Для простых фигур вычисляем границы напрямую
+        double half = newSizeOfShape / 2;
+        double minX = x - half;
+        double minY = y - half;
+        double maxX = x + half;
+        double maxY = y + half;
+        return minX >= 0 && minY >= 0 && maxX <= canvasWidth && maxY <= canvasHeight;
+    }
+
+    // Метод для изменения размера фигуры
+    public void resizeShape(double newSizeOfShape, double canvasWidth, double canvasHeight) {
+        if (canResize(newSizeOfShape, canvasWidth, canvasHeight)) { size = newSizeOfShape; }
+    }
+
+    // Метод устанавливает флаг выделения фигуры
+    public void shapeSetSelected(boolean selected) {this.selected = selected;}
+
+    // Метод проверяет, выделена ли фигура
+    public boolean isSelected() { return selected;}
+
+    // Метод устанавливает цвет фигуры
+    public void setColor(Color color) { this.color = color;}
+
+    // Методы получают координаты X Y центра фигуры
+    public double getXcentrOfShape() {return x;}
+    public double getYcentrOfShape() {return y;}
+
+    // Метод получает размер фигуры
+    public double getSizeOfShape() { return size;}
+
+    // Метод корректирует позицию фигуры, чтобы она не выходила за границы
+    public void correctPositionToBounds(double canvasWidth, double canvasHeight) { // Используется при создании фигуры, чтобы сразу поместить её в допустимые границы
         double minX = getMinX();
         double minY = getMinY();
         double maxX = getMaxX();
         double maxY = getMaxY();
+        if (minX < 0) { x += -minX;} // Сдвигаем фигуру вправо на расстояние, на которое она вышла за границу слева
+        if (maxX > canvasWidth) {x -= (maxX - canvasWidth);} // Сдвигаем фигуру влево на расстояние, на которое она вышла за границу
+        if (minY < 0) {y += -minY;} // Сдвигаем фигуру вниз на расстояние, на которое она вышла за границу
+        if (maxY > canvasHeight) {y -= (maxY - canvasHeight);} // Сдвигаем фигуру вверх на расстояние, на которое она вышла за границу
+    }
 
-        if (minX < 0) {
-            x += -minX;
-        }
-
-        if (maxX > canvasWidth) {
-            x -= (maxX - canvasWidth);
-        }
-
-        if (minY < 0) {
-            y += -minY;
-        }
-
-        if (maxY > canvasHeight) {
-            y -= (maxY - canvasHeight);
-        }
+    // Метод устанавливает стиль обводки фигуры (цвет и толщину линии)
+    protected void setShapesStroke(GraphicsContext gc) {
+        gc.setStroke(selected ? Color.BLUE : Color.BLACK);
+        gc.setLineWidth(selected ? 2 : 1);
     }
 }
-
