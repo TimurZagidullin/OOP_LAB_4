@@ -14,40 +14,35 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import java.net.URL;
 import java.util.ResourceBundle;
-// Класс Controller - управляет взаимодействием пользователя с интерфейсом
-// implements Initializable - реализует интерфейс для инициализации после загрузки FXML
 public class Controller implements Initializable {
     @FXML private Canvas canvas;
     @FXML private Button btnCursor, btnSelect, btnCircle, btnSquare, btnRectangle, btnTriangle, btnLine;
     @FXML private ColorPicker colorPicker;
 
-    private Model model; // model - объект модели, хранящий все фигуры и управляющий ими
-    private double mouseStartX, mouseStartY; //координаты точки, где была нажата кнопка мыши. Используются для определения начала действия (перетаскивание, выделение и т.д.)
-    private double prevMouseX, prevMouseY; // prevMouseX, prevMouseY - предыдущие координаты мыши. Используются для вычисления смещения при перетаскивании
-    private boolean isDragging = false; // флаг, указывающий что сейчас происходит перетаскивание фигуры
-    private boolean isSelecting = false; // флаг, указывающий что сейчас происходит выделение области
-    private boolean isCreating = false; // флаг, указывающий что сейчас создается новая фигура
-    private Tool useNowTool = Tool.CURSOR; // текущий активный инструмент
-    private Shape lastCreatedShape = null; // lastCreatedShape - последняя созданная фигура. Используется для изменения размера фигуры во время её создания
-    private boolean dragStarted = false; // dragStarted - флаг, указывающий что перетаскивание началось. Используется для предотвращения случайных перемещений при клике
-    private long mousePressTime = 0; // время (в миллисекундах) когда была нажата кнопка мыши. Используется для определения был ли это клик или перетаскивание
-    private static final long CLICK_THRESHOLD = 200; // пороговое значение времени для определения клика. Если время нажатия < 200 мс, это считается кликом, иначе - перетаскиванием
-    
-    // Перечисление Tool - список всех доступных инструментов редактора
-    // enum - специальный тип для создания списка константных значений
-    public enum Tool { CURSOR, SELECT, CIRCLE, SQUARE, RECTANGLE, TRIANGLE, LINE }
+    private Model model;
+    private double mouseStartX, mouseStartY;
+    private double prevMouseX, prevMouseY; // предыдущие координаты мыши для вычисления смещения при перетаскивании
+    private boolean isDragging = false;
+    private boolean isSelecting = false; // выделение области
+    private boolean isCreating = false;
+    private Tool useNowTool = Tool.CURSOR;
+    private Shape lastCreatedShape = null; // для изменения размера фигуры во время её создания
+    private boolean dragStarted = false; // для предотвращения случайных перемещений при клике
+    private long mousePressTime = 0;
+    private static final long CLICK_THRESHOLD = 200; //  < 200 мс - клик, иначе перетаскивание
+
+    public enum Tool { CURSOR, SELECT, CIRCLE, SQUARE, RECTANGLE, TRIANGLE, LINE } // список конст значений инструменты
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
         model = new Model();
-        model.setOnModelChanged(this::redraw); // ссылка на метод redraw класса model
+        model.setOnModelChanged(this::redraw);
         setupToolbar();
         setupCanvas();
         setupKeyboard();
         redraw();
     }
 
-    // Метод setupToolbar - настраивает панель инструментов
     private void setupToolbar() {
         loadIcon(btnCursor, "/com/example/lab_4_oop/cursor.png");
         loadIcon(btnSelect, "/com/example/lab_4_oop/highlight.png");
@@ -57,7 +52,6 @@ public class Controller implements Initializable {
         loadIcon(btnTriangle, "/com/example/lab_4_oop/triangle.png");
         loadIcon(btnLine, "/com/example/lab_4_oop/line.png");
 
-        // Устанавливаем обработчики событий для кнопок инструментов. setOnAction - метод устанавливает функцию, которая вызывается при нажатии кнопки. При нажатии кнопки вызывается метод setTool с соответствующим инструментом
         btnCursor.setOnAction(e -> setTool(Tool.CURSOR));
         btnSelect.setOnAction(e -> setTool(Tool.SELECT));
         btnCircle.setOnAction(e -> setTool(Tool.CIRCLE));
@@ -71,10 +65,9 @@ public class Controller implements Initializable {
             model.setColorNow(colorPicker.getValue()); // сохранение в model для новых фигур
             model.changeColorSelected(colorPicker.getValue()); // измененение цвета выделенных фигур
         });
-        setTool(Tool.CURSOR); // по умолчанию
+        setTool(Tool.CURSOR);
     }
 
-    // Метод установки иконки на кнопку
     private void loadIcon(Button button, String resourcePath) {
         java.io.InputStream img = getClass().getResourceAsStream(resourcePath);
         if (img == null) return;
@@ -83,7 +76,6 @@ public class Controller implements Initializable {
             ImageView imageView = new ImageView(icon);
             imageView.setFitWidth(20);
             imageView.setFitHeight(20);
-            imageView.setPreserveRatio(true); // Сохранение пропорций изображения
             button.setGraphic(imageView);
         } catch (Exception ex) {}
     }
@@ -112,44 +104,44 @@ public class Controller implements Initializable {
             case LINE: activeButton = btnLine; break;
         }
         if (activeButton != null) {
-            activeButton.setStyle("-fx-background-color: #0078d4; -fx-text-fill: white;"); // цвет фона и текста для кнопки
+            activeButton.setStyle("-fx-background-color: #0078d4; -fx-text-fill: white;"); // цвет фона и текста
         }
     }
 
     // Метод настройки холста
     private void setupCanvas() {
         canvas.setFocusTraversable(true); // холст может получать фокус клавиатуры
-        Platform.runLater(() -> { // выполняет код после полной инициализации JavaFX
-            if (canvas.getScene() != null && canvas.getScene().getWindow() != null) { // Проверяем, что холст уже добавлен в сцену и сцена в окне
-                Stage stage = (Stage) canvas.getScene().getWindow(); // Получаем ссылку на главное окно приложения
-                canvas.widthProperty().bind(stage.widthProperty().subtract(20)); // Привязываем ширину холста к ширине окна (с отступом 20 пикселей). bind - создает связь: при изменении ширины окна автоматически меняется ширина холста
-                canvas.heightProperty().bind(stage.heightProperty().subtract(105)); // Привязываем высоту холста к высоте окна (с отступом 105 пикселей)
+        Platform.runLater(() -> { // выполняет код после полной инициализации
+            if (canvas.getScene() != null && canvas.getScene().getWindow() != null) { // Проверка, что холст уже добавлен в сцену и сцена в окне
+                Stage stage = (Stage) canvas.getScene().getWindow(); // Ссылка на главное окно приложения
+                canvas.widthProperty().bind(stage.widthProperty().subtract(20)); // Привязка ширины холста к ширине окна, отступ 20
+                canvas.heightProperty().bind(stage.heightProperty().subtract(105)); // Привязка высоты холста к высоте окна, отступ 105
             }
         });
 
-        canvas.setOnMousePressed(this::handleMousePressed); // Обработчик события нажатия кнопки мыши // this::handleMousePressed - ссылка на метод handleMousePressed этого класса
-        canvas.setOnMouseDragged(this::handleMouseDrag); // Обработчик события перетаскивания мышью
-        canvas.setOnMouseReleased(this::handleMouseReleased); // Обработчик события отпускания кнопки мыши
+        canvas.setOnMousePressed(this::handleMousePressed); // нажатие
+        canvas.setOnMouseDragged(this::handleMouseDrag); // перетаскивание
+        canvas.setOnMouseReleased(this::handleMouseReleased); // отпускание
     }
 
-    // Метод обработки нажатия кнопки мыши на холсте
+    // Обработка нажатия кнопки мыши на холсте
     private void handleMousePressed(MouseEvent e) {
-        canvas.requestFocus(); // Запрашиваем фокус для холста (чтобы обрабатывать нажатия клавиш)
-        mouseStartX = e.getX();// Сохраняем координаты точки, где была нажата кнопка мыши // e.getX() - координата X точки клика относительно холста
+        canvas.requestFocus();
+        mouseStartX = e.getX();
         mouseStartY = e.getY();
-        prevMouseX = e.getX(); // Сохраняем текущие координаты как предыдущие (для вычисления смещения при перетаскивании)
+        prevMouseX = e.getX();
         prevMouseY = e.getY();
-        mousePressTime = System.currentTimeMillis(); // Запоминаем время нажатия кнопки мыши (в миллисекундах)
-        Shape shape = model.findShapeAt(e.getX(), e.getY()); // Ищем фигуру в точке клика
+        mousePressTime = System.currentTimeMillis();
+        Shape shape = model.findShapeAt(e.getX(), e.getY()); // поиск фигуры в точке клика
 
-        if (e.getButton() == MouseButton.PRIMARY) { // Проверяем, что была нажата левая кнопка мыши
-            if (shape != null) { // Если клик был по фигуре
+        if (e.getButton() == MouseButton.PRIMARY) {
+            if (shape != null) { // если клик по фигуре
                 mouseShapeClick(shape, e);
             }
-            else if (!e.isControlDown()) { // Если клик был не по фигуре и не зажат Ctrl (обычный клик в пустое место)
-                model.clearSelection(); // Очищаем все выделения
+            else if (!e.isControlDown()) { // если в пустое место
+                model.clearSelection();
             }
-            handleToolAction(e, shape); // Обрабатываем действие в зависимости от выбранного инструмента
+            handleToolAction(e, shape); // обработка действия в зависимости от инструмента
         }
     }
 
@@ -168,21 +160,21 @@ public class Controller implements Initializable {
             case CURSOR:
                 break;
             case SELECT:
-                isSelecting = true; // Устанавливаем флаг начала выделения области
+                isSelecting = true; // флаг начала выделения области
                 break;
-            case LINE: // Если выбран инструмент создания линии
-                if (shape == null) { // Если клик был не по фигуре (в пустое место)
-                    isCreating = true; // Устанавливаем флаг создания новой фигуры
-                    updateLine(e.getX(), e.getY()); // Создаем или обновляем линию
+            case LINE:
+                if (shape == null) { // клик в пустое место
+                    isCreating = true;
+                    updateLine(e.getX(), e.getY()); // создание линии
                 }
                 break;
-            case CIRCLE: // Если выбран инструмент создания фигуры (круг, квадрат и т.д.)
+            case CIRCLE:
             case SQUARE:
             case RECTANGLE:
             case TRIANGLE:
-                if (shape == null) { // Если клик был не по фигуре (в пустое место)
-                    isCreating = true; // Устанавливаем флаг создания новой фигуры
-                    createShape(e.getX(), e.getY()); // Создаем новую фигуру в точке клика
+                if (shape == null) {
+                    isCreating = true;
+                    createShape(e.getX(), e.getY());
                 }
                 break;
         }
@@ -190,31 +182,29 @@ public class Controller implements Initializable {
 
     // Метод обработки перетаскивания мыши
     private void handleMouseDrag(MouseEvent e) {
-        if (isDragging) { // Если происходит перетаскивание фигуры
-            handleDrag(e); // Обрабатываем перетаскивание (перемещение фигуры)
+        if (isDragging) {
+            handleDrag(e); // обработка перетаскивания фигуры
         }
-        else if (isSelecting) { // Если происходит выделение области
-            redraw(); // Перерисовываем холст (чтобы убрать предыдущий прямоугольник выделения)
-            drawSelectionRectangle(mouseStartX, mouseStartY, e.getX(), e.getY()); // Рисуем прямоугольник выделения от начальной точки до текущей позиции мыши
+        else if (isSelecting) { // Если выделение области
+            redraw();
+            drawSelectionRectangle(mouseStartX, mouseStartY, e.getX(), e.getY()); // выделение от начальной точки до текущей позиции мыши
         }
-        else if (isCreating && lastCreatedShape != null) { // Если происходит создание новой фигуры
-            handleShapeCreation(e); // Обрабатываем создание фигуры (изменение размера во время создания)
+        else if (isCreating && lastCreatedShape != null) { // Если создание новой фигуры
+            handleShapeCreation(e); // создание фигуры (изменение размера во время создания)
         }
     }
 
     // Метод обработки перетаскивания фигуры
     private void handleDrag(MouseEvent e) {
-        double dx = e.getX() - prevMouseX; // Вычисляем смещение по оси X (на сколько пикселей сдвинулась мышь) // dx - разница между текущей и предыдущей координатой X
+        double dx = e.getX() - prevMouseX; // смещение
         double dy = e.getY() - prevMouseY;
-        if (Math.abs(dx) > 0.1 || Math.abs(dy) > 0.1) { // Проверяем, что смещение достаточно большое (больше 0.1 пикселя) // Это предотвращает случайные микродвижения при клике // Math.abs() - абсолютное значение (модуль числа, убирает знак минус)
-            if (!dragStarted) { // Если перетаскивание еще не началось
-                dragStarted = true; // Устанавливаем флаг начала перетаскивания
+        if (Math.abs(dx) > 0.1 || Math.abs(dy) > 0.1) { // смещение достаточное
+            if (!dragStarted) {
+                dragStarted = true;
             }
-            // Перемещаем все выделенные фигуры на вычисленное смещение
-            // moveSelected - метод модели, перемещает все выделенные фигуры
-            // getCanvasWidth(), getCanvasHeight() - актуальные размеры холста (для проверки границ)
+            // Перемещение всех выделенных фигур на вычисленное смещение
             model.moveSelected(dx, dy, getCanvasWidth(), getCanvasHeight());
-            prevMouseX = e.getX(); // Сохраняем текущие координаты как предыдущие для следующего движения
+            prevMouseX = e.getX();
             prevMouseY = e.getY();
         }
     }
@@ -222,15 +212,13 @@ public class Controller implements Initializable {
     // Метод обработки создания новой фигуры (изменение размера во время создания)
     private void handleShapeCreation(MouseEvent e) {
         if (useNowTool == Tool.LINE) { // Если создается линия
-            updateLine(e.getX(), e.getY()); // Обновляем конечную точку линии до текущей позиции мыши
+            updateLine(e.getX(), e.getY()); // Обновление конечной точки линии до текущей позиции мыши
         }
-        else { // Если создается обычная фигура (круг, квадрат и т.д.)
-            // Вычисляем расстояние от центра создаваемой фигуры до текущей позиции мыши
-            // Math.hypot - вычисляет гипотенузу (расстояние между двумя точками)
-            double radius = Math.hypot(e.getX() - lastCreatedShape.getXcentrOfShape(), e.getY() - lastCreatedShape.getYcentrOfShape());
-            double newSize = radius * 2; // Вычисляем новый размер фигуры (диаметр = расстояние * 2) // radius * 2 - размер фигуры равен удвоенному расстоянию от центра до мыши
-            if (newSize > 10 && newSize < 500) { // Проверяем, что размер в допустимых пределах
-                lastCreatedShape.resizeShape(newSize, getCanvasWidth(), getCanvasHeight()); // Изменяем размер создаваемой фигуры
+        else { // Если создается обычная фигура
+            double radius = Math.hypot(e.getX() - lastCreatedShape.getXcentrOfShape(), e.getY() - lastCreatedShape.getYcentrOfShape()); //hypot -гипотенуза
+            double newSize = radius * 2; // размер фигуры равен удвоенному расстоянию от центра до мыши
+            if (newSize > 10 && newSize < 500) {
+                lastCreatedShape.resizeShape(newSize, getCanvasWidth(), getCanvasHeight()); // Изменение размера создаваемой фигуры
                 redraw();
             }
         }
@@ -239,22 +227,20 @@ public class Controller implements Initializable {
     // Метод обработки отпускания кнопки мыши
     private void handleMouseReleased(MouseEvent e) {
         if (e.getButton() == MouseButton.PRIMARY) {
-            long clickDuration = System.currentTimeMillis() - mousePressTime; // Вычисляем длительность нажатия кнопки мыши (в миллисекундах) // clickDuration - разница между временем отпускания и временем нажатия
-            if (isSelecting) { // Если происходило выделение области
-                selectShapesInArea(mouseStartX, mouseStartY, e.getX(), e.getY()); // Выделяем все фигуры, которые полностью находятся в выделенной области
-                redraw();
+            long clickDuration = System.currentTimeMillis() - mousePressTime; // разница между временем отпускания и временем нажатия
+            if (isSelecting) { // Если выделение
+                selectShapesInArea(mouseStartX, mouseStartY, e.getX(), e.getY()); // выделение всех фигур в области
             }
-            else if (isCreating) { // Если происходило создание новой фигуры
+            else if (isCreating) {
                 if (useNowTool == Tool.LINE && lineStart != null) { // Если создавалась линия
-                    if (clickDuration < CLICK_THRESHOLD && lineStart.getSizeOfShape() == 0) { // Если это был быстрый клик (без перетаскивания) и линия еще точка (длина = 0)
-                        // Автоматически устанавливаем конечную точку (горизонтальная линия длиной 100)
+                    if (clickDuration < CLICK_THRESHOLD && lineStart.getSizeOfShape() == 0) {
                         updateLine(lineStart.getXcentrOfShape() + 100, lineStart.getYcentrOfShape());
                     }
-                    lineStart = null; // Очищаем ссылку на создаваемую линию
+                    lineStart = null;
                 }
             }
         }
-        resetMouseState(); // Сбрасываем все флаги состояния мыши (завершаем все действия)
+        resetMouseState();
     }
 
     // Метод сбрасывания всех флагов состояния мыши
@@ -267,16 +253,14 @@ public class Controller implements Initializable {
 
     // Метод для настройки обработки нажатий клавиш
     private void setupKeyboard() {
-        Platform.runLater(() -> { // Platform.runLater - выполняет код после полной инициализации JavaFX  // Используется потому что на момент initialize() сцена может быть еще не готова
-            if (canvas.getScene() != null) { // Проверяем, что холст уже добавлен в сцену
-                canvas.getScene().addEventFilter(KeyEvent.KEY_PRESSED, e -> { // Используем addEventFilter для перехвата событий стрелок ДО обработки меню
-                    if (e.getCode() == KeyCode.LEFT || e.getCode() == KeyCode.RIGHT || e.getCode() == KeyCode.UP || e.getCode() == KeyCode.DOWN) {  // Обрабатываем стрелки - перехватываем их до обработки меню
+        Platform.runLater(() -> {
+            if (canvas.getScene() != null) {
+                canvas.getScene().addEventFilter(KeyEvent.KEY_PRESSED, e -> {
+                    if (e.getCode() == KeyCode.LEFT || e.getCode() == KeyCode.RIGHT || e.getCode() == KeyCode.UP || e.getCode() == KeyCode.DOWN) {
                         moveWithArrowKeys(e.getCode());
-                        e.consume(); // Потребляем событие, чтобы меню его не обработало
+                        e.consume();
                     }
                 });
-                
-                // Обработчик для остальных клавиш на canvas (когда canvas в фокусе)
                 canvas.setOnKeyPressed(e -> {
                     if (e.getCode() == KeyCode.DELETE) { model.removeSelected(); }
                     if (e.isControlDown() && e.getCode() == KeyCode.A) { selectAll(); }
@@ -288,11 +272,10 @@ public class Controller implements Initializable {
         });
     }
 
-    // Метод для очистки холста (вызывается из меню и горячей клавиши Ctrl+N)
+    // Метод для очистки холста
     @FXML
     private void createNew() {
         model.clearAll();
-        redraw();
     }
     @FXML
     private void exitApplication() {
@@ -310,17 +293,17 @@ public class Controller implements Initializable {
             case DOWN: dy = step; break;
             default: break;
         }
-        model.moveSelected(dx, dy, getCanvasWidth(), getCanvasHeight()); // Перемещаем все выделенные фигуры на вычисленное смещение
+        model.moveSelected(dx, dy, getCanvasWidth(), getCanvasHeight()); // Перемещение всех выделенных фигур на вычисленное смещение
     }
 
     // Метод изменения размера выделенных фигур
-    private void resizeSelected(double scale) { // double scale - коэффициент масштабирования (1.1 = увеличить на 10%, 0.9 = уменьшить на 10%)
-        model.resizeSelected(scale, getCanvasWidth(), getCanvasHeight()); // Вызываем метод модели для изменения размера всех выделенных фигур
+    private void resizeSelected(double scale) { // double scale - кэф масштабирования
+        model.resizeSelected(scale, getCanvasWidth(), getCanvasHeight());
     }
 
     // Метод выделения всех фигур на холсте
     private void selectAll() {
-        model.selectAllShapes(); // Вызываем метод модели для выделения всех фигур
+        model.selectAllShapes();
     }
     
     // Метод для получениия ширины холста
@@ -349,55 +332,55 @@ public class Controller implements Initializable {
             default:
                 break;
         }
-        if (shape != null) { // Если фигура была создана
-            shape.correctPositionToBounds(getCanvasWidth(), getCanvasHeight()); // Корректируем позицию фигуры, чтобы она не выходила за границы холста // correctPositionToBounds - метод фигуры, сдвигает её если она выходит за границы
-            model.addShapeToStorage(shape); // Добавляем фигуру в модель (в список всех фигур)
-            lastCreatedShape = shape; // Сохраняем ссылку на созданную фигуру (для изменения размера во время создания)
+        if (shape != null) { // Если фигура создана
+            shape.correctPositionToBounds(getCanvasWidth(), getCanvasHeight()); // Корректировка позиции фигуры
+            model.addShapeToStorage(shape);
+            lastCreatedShape = shape; // Сохранение ссылки на созданную фигуру (для изменения размера во время создания)
         }
     }
 
-    private Shape lineStart = null; // Переменная lineStart - ссылка на создаваемую линию // Используется для обновления конечной точки линии во время создания
+    private Shape lineStart = null; // ссылка на создаваемую линию для обновления конечной точки линии во время создания
     
     // Метод для создания или обновления линии
     private void updateLine(double x, double y) {
-        if (lineStart == null) { // Если линия еще не создана - создаем новую
-            double margin = 100; // Отступ от правого края // Корректируем координату X, чтобы точка не была слишком близко к правому краю
+        if (lineStart == null) {
+            double margin = 100; // Отступ от правого края
             double startX = Math.min(x, getCanvasWidth() - margin);
-            double startY = y; // Y координата без изменений
+            double startY = y;
             lineStart = new Line(startX, startY, startX, startY, model.getColorNow());
             model.addShapeToStorage(lineStart);
             lastCreatedShape = lineStart;
         }
-        else if (lineStart instanceof Line) { // Если линия уже существует - обновляем конечную точку
+        else if (lineStart instanceof Line) { // Если линия уже существует - обновить конечную точку
             Line line = (Line) lineStart;
             double x2 = Math.max(0, Math.min(x, getCanvasWidth()));
             double y2 = Math.max(0, Math.min(y, getCanvasHeight()));
             line.setX2(x2);
             line.setY2(y2);
-            line.updateSize(); // Пересчитываем размер линии на основе новых координат
+            line.updateSize(); // пересчет размера линии на основе новых координат
         }
         redraw();
     }
 
     // Метод перерисовки
     private void redraw() {
-        GraphicsContext gc = canvas.getGraphicsContext2D(); // Получаем объект GraphicsContext для рисования на холсте // getGraphicsContext2D() - метод холста, возвращает объект для 2D рисования
-        gc.clearRect(0, 0, getCanvasWidth(), getCanvasHeight()); // clearRect - очищает прямоугольную область // getCanvasWidth(), getCanvasHeight() - актуальные ширина и высота области для очистки
-        model.drawAll(gc); // Просим модель перерисовать все фигуры
+        GraphicsContext gc = canvas.getGraphicsContext2D();
+        gc.clearRect(0, 0, getCanvasWidth(), getCanvasHeight()); // очистка полотна
+        model.drawAll(gc); // перерисовка фигур
     }
     
     // Метод для рисования прямоугольника выделения области
-    private void drawSelectionRectangle(double x1, double y1, double x2, double y2) { // double x1, y1 - координаты начальной точки прямоугольника // double x2, y2 - координаты конечной точки прямоугольника
-        GraphicsContext gc = canvas.getGraphicsContext2D(); // Получаем объект GraphicsContext для рисования
+    private void drawSelectionRectangle(double x1, double y1, double x2, double y2) { // координаты начальной и конечной точки прямоугольника
+        GraphicsContext gc = canvas.getGraphicsContext2D();
         gc.setStroke(Color.BLUE);
         gc.setLineWidth(1);
-        gc.setLineDashes(5, 5); // Устанавливаем пунктирную линию (пунктир 5 пикселей, пробел 5 пикселей) // setLineDashes - метод для создания пунктирной линии
-        gc.strokeRect(Math.min(x1, x2), Math.min(y1, y2), Math.abs(x2 - x1), Math.abs(y2 - y1)); // Рисуем прямоугольник выделения // strokeRect - рисует только контур прямоугольника (не залитый) // Math.min(x1, x2), Math.min(y1, y2) - координаты левого верхнего угла (минимальные значения)// Math.abs(x2 - x1) - ширина прямоугольника (абсолютное значение разницы координат)         // Math.abs(y2 - y1) - высота прямоугольника
-        gc.setLineDashes(); // Отключаем пунктирную линию (возвращаем к сплошной линии) // setLineDashes() без параметров - сбрасывает пунктир
+        gc.setLineDashes(5, 5);
+        gc.strokeRect(Math.min(x1, x2), Math.min(y1, y2), Math.abs(x2 - x1), Math.abs(y2 - y1)); // прямоугольник выделения
+        gc.setLineDashes(); // сброс пунктира
     }
     
     // Метод для выделения всех фигур, которые пересекаются с выделенной областью
     private void selectShapesInArea(double x1, double y1, double x2, double y2) {
-        model.selectShapesInArea(x1, y1, x2, y2); // Просим модель выделить фигуры в указанной области
+        model.selectShapesInArea(x1, y1, x2, y2); // выделение фигур в указанной области
     }
 }

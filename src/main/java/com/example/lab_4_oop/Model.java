@@ -2,23 +2,20 @@ package com.example.lab_4_oop;
 
 import com.example.lab_4_oop.shapes.*;
 import javafx.scene.paint.Color;
-public class Model { // Model хранит данные, Controller обрабатывает действия пользователя
+public class Model {
     private final Storage<Shape> shapes = new Storage<>();
-    private Color colorNow = Color.RED; // Приватное поле colorNow - текущий выбранный цвет для новых фигур
-    private Runnable onModelChanged = () -> {}; // Используется для уведомления Controller о том, что нужно перерисовать экран
+    private Color colorNow = Color.RED;
+    private Runnable onModelChanged = () -> {}; // Для уведомления контроллера, что нужно перерисовать полотно
 
-    // Метод установки функции-обработчика изменений
     public void setOnModelChanged(Runnable callback) { // функция вызывается при изменении модели
         this.onModelChanged = callback;
     }
 
-    // Метод добавления фигур в хранилище
     public void addShapeToStorage(Shape shape) {
         shapes.add(shape);
         notifyChange();
     }
 
-    // Метод удаления фигур из хранилища
     public void removeShapeFromStorage(Shape shape) {
         shapes.remove(shape);
         notifyChange();
@@ -106,7 +103,7 @@ public class Model { // Model хранит данные, Controller обраба
     }
 
     // Метод изменения размера всех выделенных фигур
-    public void resizeSelected(double scale, double canvasWidth, double canvasHeight) { // double scale: кэф масштабирования, например1.1 это увеличить на 10%
+    public void resizeSelected(double scale, double canvasWidth, double canvasHeight) { // double scale: кэф масштабирования, например1.1 это + 10%
         boolean canResizeAll = true;
         for (Shape shape : shapes) {
             if (shape.isSelected()) {
@@ -159,17 +156,15 @@ public class Model { // Model хранит данные, Controller обраба
         }
     }
 
-    // Получение текущего выбранного цвета
     public Color getColorNow() {
         return colorNow;
     }
 
-    // Устанавливка текущего выбранного цвета
     public void setColorNow(Color color) {
         this.colorNow = color;
     }
     
-    // Очистка всех фигуры с холста
+    // Очистка всех фигур с холста
     public void clearAll() {
         shapes.clear();
         notifyChange();

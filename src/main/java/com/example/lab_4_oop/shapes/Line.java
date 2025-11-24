@@ -117,10 +117,10 @@ public class Line extends Shape {
         double maxX = getMaxX();
         double maxY = getMaxY();
         double dx = 0, dy = 0;
-        if (minX < 0) { dx = -minX; } // сдвигаем вправо
-        if (maxX > canvasWidth) { dx = canvasWidth - maxX; } // сдвигаем влево
-        if (minY < 0) { dy = -minY; } // сдвигаем вниз
-        if (maxY > canvasHeight) { dy = canvasHeight - maxY; } // сдвигаем вверх
+        if (minX < 0) { dx = -minX; } // сдвиг вправо
+        if (maxX > canvasWidth) { dx = canvasWidth - maxX; } // сдвиг влево
+        if (minY < 0) { dy = -minY; } // сдвиг вниз
+        if (maxY > canvasHeight) { dy = canvasHeight - maxY; } // сдвиг вверх
         x += dx;
         y += dy;
         x2 += dx;
